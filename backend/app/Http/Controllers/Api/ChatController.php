@@ -13,7 +13,6 @@ class ChatController extends Controller
     {
         $request->validate(['message' => 'required|string']);
 
-        // Obtener historial reciente
         $history = ChatHistory::orderBy('created_at', 'desc')
             ->take(10)
             ->get()
@@ -22,8 +21,7 @@ class ChatController extends Controller
             ->values()
             ->toArray();
 
-        // Llamar al agente Python
-        $response = Http::post('http://netguard_agent:5000/chat', [
+        $response = Http::timeout(120)->post('http://netguard_agent:5000/chat', [
             'message' => $request->message,
             'history' => $history
         ]);
@@ -34,7 +32,6 @@ class ChatController extends Controller
 
         $data = $response->json();
 
-        // Guardar en historial
         ChatHistory::create(['role' => 'user',      'content' => $request->message]);
         ChatHistory::create(['role' => 'assistant', 'content' => $data['response']]);
 
