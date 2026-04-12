@@ -18,9 +18,8 @@ services:
       - "5000:5000"
     volumes:
       - ./agent:/app
-    env_file:
-      - .env
     environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       FLASK_ENV: development
 
   frontend:
