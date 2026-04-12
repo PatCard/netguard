@@ -1,0 +1,56 @@
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: netguard_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - netguard_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: netguard_backend
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    networks:
+      - netguard_network
+
+  agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    container_name: netguard_agent
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    networks:
+      - netguard_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: netguard_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - agent
+    networks:
+      - netguard_network
+
+volumes:
+  mysql_data:
+
+networks:
+  netguard_network:
+    driver: bridge

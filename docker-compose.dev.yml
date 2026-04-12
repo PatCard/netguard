@@ -1,0 +1,33 @@
+services:
+
+  mysql:
+    ports:
+      - "3306:3306"
+
+  backend:
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/var/www/html
+    environment:
+      APP_ENV: local
+      APP_DEBUG: true
+
+  agent:
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./agent:/app
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      FLASK_ENV: development
+
+  frontend:
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      VITE_API_URL: http://localhost:8000
+      VITE_AGENT_URL: http://localhost:5000
