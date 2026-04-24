@@ -24,13 +24,13 @@ Implementar el chat web con el agente IA y las herramientas básicas de escaneo 
 
 ## Pasos
 
-- [ ] 1. Estructura del proyecto
-- [ ] 2. Inicializar Git
-- [ ] 3. README.md base
-- [ ] 4. Documentación Fase 1
-- [ ] 5. Docker Compose base (MySQL + PHP + Python + React)
-- [ ] 6. Backend Laravel — API REST
-- [ ] 7. Agente Python — herramientas de escaneo
+- [x] 1. Estructura del proyecto
+- [x] 2. Inicializar Git
+- [x] 3. README.md base
+- [x] 4. Documentación Fase 1
+- [x] 5. Docker Compose base (MySQL + PHP + Python + React)
+- [x] 6. Backend Laravel — API REST
+- [x] 7. Agente Python — herramientas de escaneo
 - [x] 8. Frontend React — chat web
 
 ## Progreso
@@ -41,7 +41,7 @@ Implementar el chat web con el agente IA y las herramientas básicas de escaneo 
 | Inicializar Git | ✅ |
 | README.md base | ✅ |
 | Documentación Fase 1 | ✅ |
-| Docker Compose base | ⏳ |
-| Backend Laravel | ⏳ |
-| Agente Python | ⏳ |
+| Docker Compose base | ✅ |
+| Backend Laravel | ✅ |
+| Agente Python | ✅ |
 | Frontend React | ✅ |
