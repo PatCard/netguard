@@ -3,6 +3,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from tools.scanner import scan_active_hosts, scan_open_ports
 from tools.cve import search_cves, check_weak_config
+from tools.monitor import check_new_devices
 import os
 import json
 import requests
@@ -55,7 +56,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "search_cves",
-            "description": "Busca vulnerabilidades CVE conocidas para un servicio y versión. Úsalo cuando encuentres un servicio abierto y quieras saber si tiene vulnerabilidades conocidas.",
+            "description": "Busca vulnerabilidades CVE conocidas para un servicio y versión.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -76,7 +77,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "check_weak_config",
-            "description": "Analiza los puertos abiertos de un host y detecta configuraciones débiles o peligrosas como FTP, Telnet, RDP expuesto, bases de datos sin cifrado, etc.",
+            "description": "Detecta configuraciones débiles en los puertos abiertos.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -91,6 +92,23 @@ TOOLS = [
                 "required": ["ports"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_new_devices",
+            "description": "Escanea la red y detecta dispositivos nuevos que no estaban registrados anteriormente. Úsalo cuando el usuario quiera monitorear la red o detectar intrusos.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "network": {
+                        "type": "string",
+                        "description": "Red en formato CIDR. Ejemplo: 192.168.1.0/24"
+                    }
+                },
+                "required": ["network"]
+            }
+        }
     }
 ]
 
@@ -103,6 +121,8 @@ def run_tool(tool_name: str, tool_input: dict) -> str:
         result = search_cves(tool_input["service"], tool_input.get("version", ""))
     elif tool_name == "check_weak_config":
         result = check_weak_config(tool_input["ports"])
+    elif tool_name == "check_new_devices":
+        result = check_new_devices(tool_input["network"])
     else:
         result = {"error": f"Herramienta {tool_name} no encontrada"}
     return json.dumps(result, ensure_ascii=False)
@@ -145,6 +165,7 @@ Tienes acceso a las siguientes herramientas:
 - scan_open_ports: escanea puertos abiertos de un host
 - search_cves: busca vulnerabilidades conocidas para un servicio
 - check_weak_config: detecta configuraciones débiles en los puertos abiertos
+- check_new_devices: detecta dispositivos nuevos en la red
 
 Cuando el usuario pida analizar un host, debes:
 1. Escanear sus puertos
