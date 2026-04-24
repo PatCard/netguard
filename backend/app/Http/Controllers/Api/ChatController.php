@@ -21,7 +21,7 @@ class ChatController extends Controller
             ->values()
             ->toArray();
 
-        $response = Http::timeout(120)->post('http://netguard_agent:5000/chat', [
+        $response = Http::timeout(300)->post('http://netguard_agent:5000/chat', [
             'message' => $request->message,
             'history' => $history
         ]);

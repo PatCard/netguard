@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 from tools.scanner import scan_active_hosts, scan_open_ports
+from tools.cve import search_cves, check_weak_config
 import os
 import json
 import requests
@@ -12,8 +13,8 @@ app = Flask(__name__)
 CORS(app)
 
 OPENROUTER_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-MODEL = os.getenv("LLM_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
+OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://api.groq.com/openai/v1")
+MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
 
 TOOLS = [
     {
@@ -49,6 +50,47 @@ TOOLS = [
                 "required": ["host"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_cves",
+            "description": "Busca vulnerabilidades CVE conocidas para un servicio y versión. Úsalo cuando encuentres un servicio abierto y quieras saber si tiene vulnerabilidades conocidas.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "service": {
+                        "type": "string",
+                        "description": "Nombre del servicio. Ejemplo: nginx, openssh, apache"
+                    },
+                    "version": {
+                        "type": "string",
+                        "description": "Versión del servicio. Ejemplo: 1.18.0"
+                    }
+                },
+                "required": ["service"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_weak_config",
+            "description": "Analiza los puertos abiertos de un host y detecta configuraciones débiles o peligrosas como FTP, Telnet, RDP expuesto, bases de datos sin cifrado, etc.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ports": {
+                        "type": "array",
+                        "description": "Lista de puertos abiertos con su información",
+                        "items": {
+                            "type": "object"
+                        }
+                    }
+                },
+                "required": ["ports"]
+            }
+        }
     }
 ]
 
@@ -57,6 +99,10 @@ def run_tool(tool_name: str, tool_input: dict) -> str:
         result = scan_active_hosts(tool_input["network"])
     elif tool_name == "scan_open_ports":
         result = scan_open_ports(tool_input["host"])
+    elif tool_name == "search_cves":
+        result = search_cves(tool_input["service"], tool_input.get("version", ""))
+    elif tool_name == "check_weak_config":
+        result = check_weak_config(tool_input["ports"])
     else:
         result = {"error": f"Herramienta {tool_name} no encontrada"}
     return json.dumps(result, ensure_ascii=False)
@@ -94,16 +140,25 @@ def chat():
         {
             "role": "system",
             "content": """Eres NetGuard, un agente experto en seguridad de redes.
-Puedes escanear redes locales, detectar hosts activos y analizar puertos abiertos.
-Responde siempre en español y de forma clara y concisa.
-Cuando el usuario pida escanear una red o un host, usa las herramientas disponibles."""
+Tienes acceso a las siguientes herramientas:
+- scan_active_hosts: escanea hosts activos en una red
+- scan_open_ports: escanea puertos abiertos de un host
+- search_cves: busca vulnerabilidades conocidas para un servicio
+- check_weak_config: detecta configuraciones débiles en los puertos abiertos
+
+Cuando el usuario pida analizar un host, debes:
+1. Escanear sus puertos
+2. Verificar configuraciones débiles
+3. Buscar CVEs para los servicios encontrados
+4. Dar un resumen claro con recomendaciones
+
+Responde siempre en español y de forma clara y concisa."""
         }
     ] + history + [{"role": "user", "content": message}]
 
     try:
         response = call_llm(messages)
 
-        # Ciclo ReAct: ejecutar herramientas si el modelo las solicita
         while response.get("choices", [{}])[0].get("finish_reason") == "tool_calls":
             assistant_message = response["choices"][0]["message"]
             messages.append(assistant_message)
@@ -125,7 +180,7 @@ Cuando el usuario pida escanear una red o un host, usa las herramientas disponib
 
         return jsonify({
             "response": final_response,
-            "history": messages[1:]  # excluimos el system prompt
+            "history": messages[1:]
         })
 
     except Exception as e:
