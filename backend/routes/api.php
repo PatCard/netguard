@@ -20,3 +20,11 @@ Route::prefix('devices')->group(function () {
     Route::get('/',     [DeviceController::class, 'index']);
     Route::get('/{id}', [DeviceController::class, 'show']);
 });
+
+Route::post('/audit', function (\Illuminate\Http\Request $request) {
+    $request->validate(['network' => 'required|string']);
+    $response = \Illuminate\Support\Facades\Http::timeout(300)->post('http://netguard_agent:5000/audit', [
+        'network' => $request->network
+    ]);
+    return response()->json($response->json());
+});

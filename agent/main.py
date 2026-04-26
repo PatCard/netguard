@@ -97,7 +97,7 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "check_new_devices",
-            "description": "Escanea la red y detecta dispositivos nuevos que no estaban registrados anteriormente. Úsalo cuando el usuario quiera monitorear la red o detectar intrusos.",
+            "description": "Escanea la red y detecta dispositivos nuevos.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -207,6 +207,28 @@ Responde siempre en español y de forma clara y concisa."""
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route("/audit", methods=["POST"])
+def audit():
+    data = request.get_json()
+    network = data.get("network", "")
+
+    if not network:
+        return jsonify({"error": "network is required"}), 400
+
+    try:
+        from graph import run_full_audit
+        result = run_full_audit(network)
+        return jsonify({
+            "report": result["report"],
+            "hosts": result["hosts"],
+            "vulnerabilities": result["vulnerabilities"],
+            "weak_configs": result["weak_configs"],
+            "new_devices": result["new_devices"],
+            "errors": result["errors"]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     port = int(os.getenv("AGENT_PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=os.getenv("FLASK_ENV") == "development")
+    app.run(host="0.0.0.0", port=port, debug=False)

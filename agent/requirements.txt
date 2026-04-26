@@ -6,3 +6,5 @@ scapy==2.5.0
 mysql-connector-python==8.3.0
 python-dotenv==1.0.1
 requests==2.31.0
+langgraph==0.2.28
+langchain-core==0.3.15
