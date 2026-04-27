@@ -48,6 +48,18 @@ services:
     networks:
       - netguard_network
 
+  mcp:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    container_name: netguard_mcp
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    networks:
+      - netguard_network
+    command: python mcp_server.py
+
 volumes:
   mysql_data:
 

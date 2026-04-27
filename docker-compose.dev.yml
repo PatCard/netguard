@@ -37,3 +37,11 @@ services:
       - /app/node_modules
     env_file:
       - ./frontend/.env
+
+  mcp:
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./agent:/app
+    env_file:
+      - .env
