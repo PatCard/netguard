@@ -1,12 +1,14 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from dotenv import load_dotenv
 from tools.scanner import scan_active_hosts, scan_open_ports
 from tools.cve import search_cves, check_weak_config
 from tools.monitor import check_new_devices
+from tools.report import generate_pdf_report, calculate_security_score
 import os
 import json
 import requests
+import io
 
 load_dotenv()
 
@@ -218,14 +220,44 @@ def audit():
     try:
         from graph import run_full_audit
         result = run_full_audit(network)
+        result["network"] = network
+
+        # Calcular scores
+        scores = calculate_security_score(
+            result.get("vulnerabilities", []),
+            result.get("weak_configs", []),
+            result.get("hosts", [])
+        )
+        result["scores"] = scores
+
         return jsonify({
             "report": result["report"],
             "hosts": result["hosts"],
             "vulnerabilities": result["vulnerabilities"],
             "weak_configs": result["weak_configs"],
             "new_devices": result["new_devices"],
-            "errors": result["errors"]
+            "errors": result["errors"],
+            "scores": scores,
+            "network": network
         })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/report/pdf", methods=["POST"])
+def report_pdf():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "audit data is required"}), 400
+
+    try:
+        pdf_bytes = generate_pdf_report(data)
+        return send_file(
+            io.BytesIO(pdf_bytes),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"netguard-report-{data.get('network','network').replace('/','-')}.pdf"
+        )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

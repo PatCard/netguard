@@ -13,6 +13,11 @@ services:
       - mysql_data:/var/lib/mysql
     networks:
       - netguard_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build:
@@ -21,9 +26,23 @@ services:
     container_name: netguard_backend
     restart: unless-stopped
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     networks:
       - netguard_network
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: netguard_worker
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - netguard_network
+    command: php artisan queue:work --timeout=600
 
   agent:
     build:
@@ -32,7 +51,8 @@ services:
     container_name: netguard_agent
     restart: unless-stopped
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     networks:
       - netguard_network
 
@@ -55,7 +75,8 @@ services:
     container_name: netguard_mcp
     restart: unless-stopped
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
     networks:
       - netguard_network
     command: python mcp_server.py

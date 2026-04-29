@@ -17,36 +17,30 @@ class NetworkAuditState(TypedDict):
     errors: List[str]
 
 def discover_hosts(state: NetworkAuditState) -> NetworkAuditState:
-    """Paso 1: Descubrir hosts activos en la red."""
     print(f"[LangGraph] Descubriendo hosts en {state['network']}...")
     result = scan_active_hosts(state["network"])
-
     if "error" in result:
         state["errors"].append(f"Error descubriendo hosts: {result['error']}")
         state["hosts"] = []
     else:
         state["hosts"] = result.get("hosts", [])
-
     state["current_step"] = "discover_hosts"
     return state
 
 def scan_hosts(state: NetworkAuditState) -> NetworkAuditState:
-    """Paso 2: Escanear puertos de cada host."""
     print(f"[LangGraph] Escaneando puertos de {len(state['hosts'])} hosts...")
     scan_results = []
-
-    for host in state["hosts"]:
+    # Limitamos a 3 hosts para que sea más rápido
+    for host in state["hosts"][:3]:
         ip = host["ip"]
         result = scan_open_ports(ip)
         if "error" not in result:
             scan_results.append(result)
-
     state["scan_results"] = scan_results
     state["current_step"] = "scan_hosts"
     return state
 
 def analyze_vulnerabilities(state: NetworkAuditState) -> NetworkAuditState:
-    """Paso 3: Analizar vulnerabilidades de cada host."""
     print(f"[LangGraph] Analizando vulnerabilidades...")
     vulnerabilities = []
     weak_configs = []
@@ -55,16 +49,12 @@ def analyze_vulnerabilities(state: NetworkAuditState) -> NetworkAuditState:
         ports = scan.get("ports", [])
         host = scan.get("host", "")
 
-        # Verificar configuraciones débiles
         weak = check_weak_config(ports)
         if weak.get("warnings"):
-            weak_configs.append({
-                "host": host,
-                "warnings": weak["warnings"]
-            })
+            weak_configs.append({"host": host, "warnings": weak["warnings"]})
 
-        # Buscar CVEs para cada servicio
-        for port in ports:
+        # Solo buscamos CVEs para los primeros 2 puertos por host
+        for port in ports[:2]:
             service = port.get("service", "")
             version = port.get("version", "")
             product = port.get("product", "")
@@ -88,23 +78,18 @@ def analyze_vulnerabilities(state: NetworkAuditState) -> NetworkAuditState:
     return state
 
 def check_devices(state: NetworkAuditState) -> NetworkAuditState:
-    """Paso 4: Verificar dispositivos nuevos."""
     print(f"[LangGraph] Verificando dispositivos nuevos...")
     result = check_new_devices(state["network"])
-
     if "error" not in result:
         state["new_devices"] = result.get("new_devices", [])
     else:
         state["new_devices"] = []
         state["errors"].append(f"Error verificando dispositivos: {result['error']}")
-
     state["current_step"] = "check_devices"
     return state
 
 def generate_report(state: NetworkAuditState) -> NetworkAuditState:
-    """Paso 5: Generar reporte final."""
     print(f"[LangGraph] Generando reporte...")
-
     total_hosts = len(state["hosts"])
     total_vulns = len(state["vulnerabilities"])
     total_weak = sum(len(w["warnings"]) for w in state["weak_configs"])
@@ -153,34 +138,28 @@ def generate_report(state: NetworkAuditState) -> NetworkAuditState:
     return state
 
 def should_continue(state: NetworkAuditState) -> str:
-    """Decide si continuar o terminar el flujo."""
     if not state["hosts"]:
         return END
     return "scan_hosts"
 
 def build_audit_graph():
-    """Construye y compila el grafo de auditoría."""
     graph = StateGraph(NetworkAuditState)
-
     graph.add_node("discover_hosts", discover_hosts)
     graph.add_node("scan_hosts", scan_hosts)
     graph.add_node("analyze_vulnerabilities", analyze_vulnerabilities)
     graph.add_node("check_devices", check_devices)
     graph.add_node("generate_report", generate_report)
-
     graph.set_entry_point("discover_hosts")
     graph.add_conditional_edges("discover_hosts", should_continue)
     graph.add_edge("scan_hosts", "analyze_vulnerabilities")
     graph.add_edge("analyze_vulnerabilities", "check_devices")
     graph.add_edge("check_devices", "generate_report")
     graph.add_edge("generate_report", END)
-
     return graph.compile()
 
 audit_graph = build_audit_graph()
 
 def run_full_audit(network: str) -> dict:
-    """Ejecuta la auditoría completa de la red."""
     initial_state = NetworkAuditState(
         network=network,
         hosts=[],
@@ -192,6 +171,5 @@ def run_full_audit(network: str) -> dict:
         current_step="start",
         errors=[]
     )
-
     final_state = audit_graph.invoke(initial_state)
     return final_state

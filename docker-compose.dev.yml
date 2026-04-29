@@ -19,6 +19,21 @@ services:
       DB_USER: netguard
       DB_PASSWORD: changeme
 
+  worker:
+    volumes:
+      - ./backend:/var/www/html
+    environment:
+      APP_ENV: local
+      APP_DEBUG: true
+      DB_CONNECTION: mysql
+      DB_HOST: netguard_mysql
+      DB_PORT: 3306
+      DB_DATABASE: netguard
+      DB_USER: netguard
+      DB_PASSWORD: changeme
+    networks:
+      - netguard_network
+
   agent:
     ports:
       - "5000:5000"
@@ -39,8 +54,6 @@ services:
       - ./frontend/.env
 
   mcp:
-    ports:
-      - "5001:5001"
     volumes:
       - ./agent:/app
     env_file:
